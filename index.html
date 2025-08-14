@@ -7,27 +7,30 @@
 <style>
   body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; color: white; }
   .card { background: #333; padding: 20px; border-radius: 12px; text-align: center; max-width: 300px; }
-  input, button { margin-top: 10px; }
+  input[type=range] { width: 100%; }
+  label { display: block; margin-top: 10px; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>💨 Tootronome</h1>
-  <label>BPM:
-    <input id="bpm" type="number" min="20" max="300" value="100">
+
+  <label>FPM: <span id="bpmDisplay">100</span>
+    <input id="bpm" type="range" min="20" max="300" value="100">
   </label>
-  <br>
+
   <label>Volume:
     <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8">
   </label>
-  <br>
+
   <button id="toggle">Start</button>
 </div>
 
 <script>
 (() => {
-  const bpmInput = document.getElementById('bpm');
-  const volumeInput = document.getElementById('volume');
+  const bpmSlider = document.getElementById('bpm');
+  const bpmDisplay = document.getElementById('bpmDisplay');
+  const volumeSlider = document.getElementById('volume');
   const toggleBtn = document.getElementById('toggle');
 
   let audioCtx = null;
@@ -37,8 +40,12 @@
   const lookahead = 25; // ms
   const scheduleAheadTime = 0.1; // sec
 
+  bpmSlider.addEventListener('input', () => {
+    bpmDisplay.textContent = bpmSlider.value;
+  });
+
   async function loadFartSound() {
-    const resp = await fetch("fart.mp3"); // change path as needed
+    const resp = await fetch("fart.mp3"); // change path if needed
     const arrayBuffer = await resp.arrayBuffer();
     fartBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   }
@@ -47,14 +54,13 @@
     const source = audioCtx.createBufferSource();
     source.buffer = fartBuffer;
     const gainNode = audioCtx.createGain();
-    gainNode.gain.value = parseFloat(volumeInput.value);
+    gainNode.gain.value = parseFloat(volumeSlider.value);
     source.connect(gainNode).connect(audioCtx.destination);
     source.start(time);
   }
 
   function nextBeatInterval() {
-    const bpm = Math.max(20, Math.min(300, parseInt(bpmInput.value, 10) || 100));
-    return 60.0 / bpm;
+    return 60.0 / parseInt(bpmSlider.value, 10);
   }
 
   function scheduler() {
@@ -78,7 +84,7 @@
       }
       isRunning = true;
       toggleBtn.textContent = "Stop";
-      currentBeatTime = audioCtx.currentTime + 0.05; // start a hair in the future
+      currentBeatTime = audioCtx.currentTime + 0.05;
       scheduler();
     } else {
       isRunning = false;

@@ -9,6 +9,9 @@
   .card { background: #333; padding: 20px; border-radius: 12px; text-align: center; max-width: 300px; }
   input[type=range] { width: 100%; }
   label { display: block; margin-top: 10px; }
+  .fart-buttons { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
+  .fart-buttons button { flex: 1; padding: 5px; border-radius: 6px; border: none; background: #555; color: white; cursor: pointer; }
+  .fart-buttons button.active { background: #0a84ff; }
 </style>
 </head>
 <body>
@@ -23,6 +26,12 @@
     <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8">
   </label>
 
+  <div class="fart-buttons">
+    <button data-file="fart.mp3" class="active">Fart 1</button>
+    <button data-file="fart2.mp3">Fart 2</button>
+    <button data-file="fart3.mp3">Fart 3</button>
+  </div>
+
   <button id="toggle">Start</button>
 </div>
 
@@ -32,9 +41,11 @@
   const bpmDisplay = document.getElementById('bpmDisplay');
   const volumeSlider = document.getElementById('volume');
   const toggleBtn = document.getElementById('toggle');
+  const fartButtons = document.querySelectorAll('.fart-buttons button');
 
   let audioCtx = null;
   let fartBuffer = null;
+  let fartFile = "fart.mp3";
   let isRunning = false;
   let currentBeatTime = 0;
   const lookahead = 25; // ms
@@ -44,8 +55,8 @@
     bpmDisplay.textContent = bpmSlider.value;
   });
 
-  async function loadFartSound() {
-    const resp = await fetch("fart.mp3"); // change path if needed
+  async function loadFartSound(file) {
+    const resp = await fetch(file);
     const arrayBuffer = await resp.arrayBuffer();
     fartBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   }
@@ -73,11 +84,22 @@
     }
   }
 
+  fartButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      fartFile = btn.dataset.file;
+      fartButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (audioCtx) {
+        await loadFartSound(fartFile);
+      }
+    });
+  });
+
   toggleBtn.addEventListener('click', async () => {
     if (!isRunning) {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        await loadFartSound();
+        await loadFartSound(fartFile);
       }
       if (audioCtx.state === "suspended") {
         await audioCtx.resume();

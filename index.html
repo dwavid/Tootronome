@@ -13,7 +13,7 @@
 <body>
 <div class="card">
   <h1>💨 Tootronome</h1>
-  <label>BPM (Farts per minute): 
+  <label>BPM:
     <input id="bpm" type="number" min="20" max="300" value="100">
   </label>
   <br>
@@ -30,40 +30,60 @@
   const volumeInput = document.getElementById('volume');
   const toggleBtn = document.getElementById('toggle');
 
+  let audioCtx = null;
+  let fartBuffer = null;
   let isRunning = false;
-  let intervalId = null;
+  let currentBeatTime = 0;
+  const lookahead = 25; // ms
+  const scheduleAheadTime = 0.1; // sec
 
-  // Load your fart sound
-  const fartSound = new Audio("fart.mp3"); // put your file in same folder
-  fartSound.preload = "auto";
-
-  function playFart() {
-    const fart = fartSound.cloneNode(); // clone so it overlaps cleanly
-    fart.volume = parseFloat(volumeInput.value);
-    fart.play();
+  async function loadFartSound() {
+    const resp = await fetch("fart.mp3"); // change path as needed
+    const arrayBuffer = await resp.arrayBuffer();
+    fartBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   }
 
-  function startMetronome() {
+  function playFart(time) {
+    const source = audioCtx.createBufferSource();
+    source.buffer = fartBuffer;
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = parseFloat(volumeInput.value);
+    source.connect(gainNode).connect(audioCtx.destination);
+    source.start(time);
+  }
+
+  function nextBeatInterval() {
     const bpm = Math.max(20, Math.min(300, parseInt(bpmInput.value, 10) || 100));
-    const interval = 60000 / bpm; // ms between beats
-    playFart(); // immediate first
-    intervalId = setInterval(playFart, interval);
+    return 60.0 / bpm;
   }
 
-  function stopMetronome() {
-    clearInterval(intervalId);
-    intervalId = null;
+  function scheduler() {
+    while (currentBeatTime < audioCtx.currentTime + scheduleAheadTime) {
+      playFart(currentBeatTime);
+      currentBeatTime += nextBeatInterval();
+    }
+    if (isRunning) {
+      setTimeout(scheduler, lookahead);
+    }
   }
 
-  toggleBtn.addEventListener('click', () => {
+  toggleBtn.addEventListener('click', async () => {
     if (!isRunning) {
-      startMetronome();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        await loadFartSound();
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
+      isRunning = true;
       toggleBtn.textContent = "Stop";
+      currentBeatTime = audioCtx.currentTime + 0.05; // start a hair in the future
+      scheduler();
     } else {
-      stopMetronome();
+      isRunning = false;
       toggleBtn.textContent = "Start";
     }
-    isRunning = !isRunning;
   });
 })();
 </script>

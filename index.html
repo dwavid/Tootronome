@@ -5,13 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tootronome</title>
 <style>
-  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; color: white; }
-  .card { background: #333; padding: 20px; border-radius: 12px; text-align: center; max-width: 300px; }
+  body { 
+    font-family: sans-serif; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    background: #222; 
+    color: white; 
+  }
+  .card { 
+    background: #333; 
+    padding: 20px; 
+    border-radius: 12px; 
+    text-align: center; 
+    max-width: 300px; 
+  }
   input[type=range] { width: 100%; }
   label { display: block; margin-top: 10px; }
-  .fart-buttons { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
-  .fart-buttons button { flex: 1; padding: 5px; border-radius: 6px; border: none; background: #555; color: white; cursor: pointer; }
-  .fart-buttons button.active { background: #0a84ff; }
+  .fart-buttons { margin-top: 15px; }
+  .fart-buttons button {
+    background: #444;
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 8px;
+    margin: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .fart-buttons button:hover {
+    background: #666;
+  }
+  #toggle {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 8px;
+    background: #28a745;
+    color: white;
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #toggle:hover {
+    background: #218838;
+  }
+  #toggle.stop {
+    background: #dc3545;
+  }
+  #toggle.stop:hover {
+    background: #b02a37;
+  }
 </style>
 </head>
 <body>
@@ -27,9 +75,9 @@
   </label>
 
   <div class="fart-buttons">
-    <button data-file="fart.mp3" class="active">Fart 1</button>
-    <button data-file="fart2.mp3">Fart 2</button>
-    <button data-file="fart3.mp3">Fart 3</button>
+    <button data-sound="fart.mp3">Fart 1</button>
+    <button data-sound="fart2.mp3">Fart 2</button>
+    <button data-sound="fart3.mp3">Fart 3</button>
   </div>
 
   <button id="toggle">Start</button>
@@ -45,9 +93,9 @@
 
   let audioCtx = null;
   let fartBuffer = null;
-  let fartFile = "fart.mp3";
   let isRunning = false;
   let currentBeatTime = 0;
+  let currentFartFile = "fart.mp3";
   const lookahead = 25; // ms
   const scheduleAheadTime = 0.1; // sec
 
@@ -55,8 +103,17 @@
     bpmDisplay.textContent = bpmSlider.value;
   });
 
-  async function loadFartSound(file) {
-    const resp = await fetch(file);
+  fartButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      currentFartFile = btn.dataset.sound;
+      if (audioCtx) {
+        await loadFartSound();
+      }
+    });
+  });
+
+  async function loadFartSound() {
+    const resp = await fetch(currentFartFile);
     const arrayBuffer = await resp.arrayBuffer();
     fartBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   }
@@ -84,33 +141,24 @@
     }
   }
 
-  fartButtons.forEach(btn => {
-    btn.addEventListener('click', async () => {
-      fartFile = btn.dataset.file;
-      fartButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      if (audioCtx) {
-        await loadFartSound(fartFile);
-      }
-    });
-  });
-
   toggleBtn.addEventListener('click', async () => {
     if (!isRunning) {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        await loadFartSound(fartFile);
+        await loadFartSound();
       }
       if (audioCtx.state === "suspended") {
         await audioCtx.resume();
       }
       isRunning = true;
       toggleBtn.textContent = "Stop";
+      toggleBtn.classList.add("stop");
       currentBeatTime = audioCtx.currentTime + 0.05;
       scheduler();
     } else {
       isRunning = false;
       toggleBtn.textContent = "Start";
+      toggleBtn.classList.remove("stop");
     }
   });
 })();
